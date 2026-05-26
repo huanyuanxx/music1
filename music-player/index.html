@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<!-- 文档类型：HTML5 -->
+<html lang="zh-CN">
+<!-- 网页语言：简体中文 -->
+<head>
+    <!-- 头部：设置网页编码、视口、标题等 -->
+    <meta charset="UTF-8">
+    <!-- 字符编码：UTF-8（支持所有中文） -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 视口设置：适配手机、电脑 -->
+    <title>黑胶唱片音乐播放器</title>
+    <!-- 网页标题 -->
+
+    <style>
+        /* ==================== CSS 样式部分 ==================== */
+        
+        /* 全局样式重置：清除所有标签默认边距、内边距 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", sans-serif;
+        }
+
+        /* 页面整体背景、布局样式 */
+        body {
+            background-color: #000;       /* 背景黑色 */
+            color: #fff;                  /* 文字白色 */
+            min-height: 100vh;            /* 最小高度占满屏幕 */
+            display: flex;                /* 弹性布局 */
+            flex-direction: column;       /* 垂直排列 */
+            justify-content: center;      /* 垂直居中 */
+            align-items: center;          /* 水平居中 */
+            padding: 20px;                /* 内边距 */
+            position: relative;           /* 相对定位（给背景图用） */
+            overflow-x: hidden;           /* 禁止横向滚动 */
+        }
+
+        /* 背景图片模糊半透明效果 */
+        body::before {
+            content: '';                 
+            position: fixed;              /* 固定定位 */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('../img/2.png'); /* 路径 */
+            background-size: cover;       /* 铺满 */
+            background-position: center;  /* 居中 */
+            background-repeat: no-repeat; /* 不重复 */
+            filter: blur(6px);            /* 模糊6像素 */
+            opacity: 0.3;                 /* 透明度30% */
+            z-index: -1;                  /* 放在最底层 */
+        }
+
+        /* 播放器最外层容器 */
+        .music-player {
+            width: 100%;
+            max-width: 900px;             /* 最大宽度 */
+            display: flex;                /* 弹性布局 */
+            align-items: center;          /* 垂直居中 */
+            justify-content: flex-end;    /* 靠右排列 */
+            gap: 50px;                    /* 元素间距 */
+            margin-bottom: 40px;          /* 底部间距 */
+        }
+
+        /* 黑胶唱片外层容器 */
+        .vinyl-container {
+            position: relative;
+            width: 400px;
+            height: 400px;
+        }
+
+        /* 黑胶唱片样式 */
+        .vinyl {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;           /* 圆形 */
+            background: #111;             /* 黑色唱片 */
+            border: 15px solid #222;      /* 灰色边框 */
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.2s ease; /* 过渡动画 */
+        }
+
+        /* 唱片旋转动画 */
+        .vinyl.rotate {
+            animation: spin 8s linear infinite; /* 8秒一圈，无限旋转 */
+        }
+
+        /* 唱片封面（中间圆形图片） */
+        .album-cover {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            overflow: hidden;             /* 超出部分隐藏 */
+            border: 8px solid #333;
+        }
+        .album-cover img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;            /* 图片填充 */
+        }
+
+        /* 唱片装饰虚线 */
+        .vinyl::before {
+            content: '';
+            position: absolute;
+            width: 90%;
+            height: 90%;
+            border-radius: 50%;
+            border: 2px dashed #444;
+        }
+
+        /* 唱片中心小圆点 */
+        .vinyl::after {
+            content: '';
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: #666;
+            z-index: 2;
+        }
+
+        /* 歌曲信息（歌名、歌手）区域 */
+        .song-info {
+            text-align: left;
+            flex: 1;                      /* 占满剩余宽度 */
+            min-width: 200px;
+        }
+        .song-title {
+            font-size: 60px;              /* 歌名大小 */
+            font-weight: bold;            /* 加粗 */
+            margin-bottom: 15px;
+            color: #fff;
+        }
+        .song-artist {
+            font-size: 24px;              /* 歌手大小 */
+            color: #aaa;
+            margin-bottom: 30px;
+        }
+
+        /* 控制栏（播放、上一首、下一首、进度条） */
+        .control-progress {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            position: relative;           /* 给播放列表定位用 */
+        }
+
+        /* 所有控制按钮通用样式 */
+        .control-btn {
+            background: transparent;      /* 透明背景 */
+            border: none;                 /* 无边框 */
+            color: #fff;
+            font-size: 28px;
+            cursor: pointer;              /* 鼠标变小手 */
+            width: 50px;
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: color 0.3s ease;  /* 颜色过渡 */
+        }
+        .control-btn:hover {
+            color: #acecff;               /*  hover 变色 */
+        }
+
+        /* 播放按钮更大一点 */
+        .play-btn {
+            font-size: 36px;
+            width: 60px;
+            height: 60px;
+        }
+
+        /* 循环按钮（3.png） */
+        .loop-btn {
+            width: 50px;
+            height: 50px;
+        }
+        .loop-btn img {
+            width: 70%;
+            height: 70%;
+            object-fit: contain;
+            opacity: 0.5;                 /* 默认半透明 */
+            transition: opacity 0.3s ease;
+        }
+        .loop-btn.active img {            /* 激活单曲循环 */
+            opacity: 1;                   /* 高亮 */
+            filter: brightness(1.2);
+        }
+
+        /* 音量按钮（4.png） */
+        .volume-btn {
+            background: transparent;
+            border: none;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .volume-btn img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        /* 播放列表按钮（5.png） */
+        .playlist-btn {
+            background: transparent;
+            border: none;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+        }
+        .playlist-btn img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        /* 额外按钮（6.png） */
+        .extra-btn {
+            background: transparent;
+            border: none;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+        }
+        .extra-btn img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        /* 进度条外层 */
+        .progress-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* 时间文字 */
+        .time-text {
+            font-size: 14px;
+            color: #aaa;
+            width: 60px;
+        }
+
+        /* 进度条底色 */
+        .progress-bar {
+            flex: 1;
+            height: 4px;
+            background: #444;
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        /* 进度条已播放部分（粉色） */
+        .progress {
+            height: 100%;
+            background: #acecff;
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        /* 音量条容器 */
+        .volume-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* 音量滑动条样式 */
+        .volume-slider {
+            width: 80px;
+            height: 4px;
+            appearance: none;
+            background: #444;
+            border-radius: 2px;
+            outline: none;
+        }
+        /* 音量滑块样式 */
+        .volume-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #acecff;
+            cursor: pointer;
+        }
+
+        /* 右侧辅助控制区 */
+        .aux-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 18px;
+            color: #aaa;
+        }
+
+        /* ==================== 播放列表样式 ==================== */
+        .playlist {
+            position: absolute;           /* 绝对定位 */
+            bottom: 70px;                 /* 距离底部70px */
+            right: 0;                     /* 靠右 */
+            width: 240px;
+            background: rgba(0,0,0,0.85); /* 半透明黑 */
+            border-radius: 10px;
+            padding: 15px;
+            display: none;                /* 默认隐藏 */
+            z-index: 999;                 /* 放在最上层 */
+        }
+        .playlist.show {                  /* 显示列表 */
+            display: block;
+        }
+        .playlist-item {                  /* 每首歌项 */
+            padding: 8px 10px;
+            font-size: 14px;
+            color: #ccc;
+            cursor: pointer;
+            border-radius: 6px;
+            margin-bottom: 4px;
+        }
+        .playlist-item:hover {            /* 鼠标悬浮 */
+            background: #333;
+            color: #fff;
+        }
+        .playlist-item.active {           /* 当前播放 */
+            color: #acecff;
+            font-weight: bold;
+        }
+
+        /* 唱片旋转动画定义 */
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 播放器主体 -->
+    <div class="music-player">
+        <!-- 黑胶唱片区域 -->
+        <div class="vinyl-container">
+            <div class="vinyl" id="vinyl">
+                <div class="album-cover">
+                    <img id="cover-img" src="" alt="封面">
+                </div>
+            </div>
+        </div>
+
+        <!-- 歌曲信息 -->
+        <div class="song-info">
+            <h1 class="song-title" id="song-title"></h1>
+            <p class="song-artist" id="song-artist"></p>
+        </div>
+    </div>
+
+    <!-- 控制与进度条区域 -->
+    <div class="control-progress">
+        <!-- 单曲循环按钮（3.png） -->
+        <button class="control-btn loop-btn" id="loop-btn">
+            <img src="../img/3.png" alt="循环">
+        </button>
+        <!-- 上一首 -->
+        <button class="control-btn" id="prev-btn">⏮</button>
+        <!-- 播放/暂停 -->
+        <button class="control-btn play-btn" id="play-btn">▶</button>
+        <!-- 下一首 -->
+        <button class="control-btn" id="next-btn">⏭</button>
+        
+        <!-- 进度条 -->
+        <div class="progress-wrapper">
+            <span class="time-text" id="current-time">00:00</span>
+            <div class="progress-bar" id="progress-bar">
+                <div class="progress" id="progress"></div>
+            </div>
+            <span class="time-text" id="duration"></span>
+        </div>
+
+        <!-- 右侧音量、播放列表、额外按钮 -->
+        <div class="aux-controls">
+            <div class="volume-wrapper">
+                <!-- 音量按钮（4.png） -->
+                <button class="volume-btn" id="volume-btn">
+                    <img src="../img/4.png" alt="音量">
+                </button>
+                <input type="range" class="volume-slider" id="volume-slider" min="0" max="1" step="0.01" value="1">
+            </div>
+
+            <!-- 播放列表按钮（5.png） -->
+            <button class="playlist-btn" id="playlist-btn">
+                <img src="../img/5.png" alt="播放列表">
+            </button>
+
+            <!-- 额外按钮（6.png） -->
+            <button class="extra-btn">
+                <img src="../img/6.png" alt="功能">
+            </button>
+        </div>
+
+        <!-- 播放列表（隐藏） -->
+        <div class="playlist" id="playlist">
+            <div class="playlist-item" data-index="0">飞行模式</div>
+            <div class="playlist-item" data-index="1">点燃银河尽头的篝火</div>
+            <div class="playlist-item" data-index="2">向阳而生</div>
+        </div>
+    </div>
+
+    <!-- 音频播放器（隐藏） -->
+    <audio id="audio" preload="metadata"></audio>
+
+    <script>
+        // ==================== JS 逻辑核心 ====================
+        // 获取页面所有元素
+        const audio = document.getElementById('audio');       // 音频对象
+        const playBtn = document.getElementById('play-btn'); // 播放按钮
+        const prevBtn = document.getElementById('prev-btn'); // 上一首
+        const nextBtn = document.getElementById('next-btn'); // 下一首
+        const vinyl = document.getElementById('vinyl');       // 唱片
+        const progressBar = document.getElementById('progress-bar'); // 进度条
+        const progress = document.getElementById('progress'); // 已播放进度
+        const currentTimeEl = document.getElementById('current-time'); // 当前时间
+        const durationEl = document.getElementById('duration'); // 总时长
+        const songTitleEl = document.getElementById('song-title'); // 歌名
+        const songArtistEl = document.getElementById('song-artist'); // 歌手
+        const coverImg = document.getElementById('cover-img'); // 封面
+        const volumeSlider = document.getElementById('volume-slider'); // 音量条
+        const loopBtn = document.getElementById('loop-btn'); // 循环按钮
+        const volumeBtn = document.getElementById('volume-btn'); // 音量按钮
+        const playlistBtn = document.getElementById('playlist-btn'); // 列表按钮
+        const playlist = document.getElementById('playlist'); // 列表容器
+        const playlistItems = document.querySelectorAll('.playlist-item'); // 所有歌曲项
+
+        // 歌曲列表（三首歌）
+        const songs = [
+            {
+                title: '飞行模式',
+                artist: '作者：华晨宇',
+                cover: '../img/1.png',
+                src: 'song.mp3',       // 歌曲文件
+                duration: '04:25'      // 时长
+            },
+            {
+                title: '点燃银河尽头的篝火',
+                artist: '作者：华晨宇',
+                cover: '../img/1.png',
+                src: 'song1.flac',
+                duration: '04:25'
+            },
+            {
+                title: '向阳而生',
+                artist: '作者：华晨宇',
+                cover: '../img/1.png',
+                src: 'song2.flac',
+                duration: '04:25'
+            }
+        ];
+
+        // 状态变量
+        let currentSongIndex = 0;    // 当前播放第几首（默认第0首）
+        let isPlaying = false;        // 是否正在播放
+        let isLoop = false;           // 是否单曲循环
+
+        // 初始化：加载第一首歌
+        loadSong(songs[currentSongIndex]);
+
+        // ==================== 功能函数 ====================
+
+        /**
+         * 加载歌曲：更新封面、歌名、歌手、歌曲地址、时长
+         * @param {Object} song - 歌曲对象
+         */
+        function loadSong(song) {
+            songTitleEl.textContent = song.title;
+            songArtistEl.textContent = song.artist;
+            durationEl.textContent = song.duration;
+            audio.src = song.src;            // 设置音频地址
+            coverImg.src = song.cover;       // 设置封面
+            progress.style.width = '0%';     // 进度条归零
+            currentTimeEl.textContent = '00:00';
+            isPlaying = false;
+            playBtn.innerHTML = '▶';         // 按钮变播放
+            vinyl.classList.remove('rotate');// 停止旋转
+
+            // 高亮当前播放歌曲
+            playlistItems.forEach((item, i) => {
+                item.classList.toggle('active', i === currentSongIndex);
+            });
+        }
+
+        /**
+         * 播放/暂停 切换
+         */
+        function togglePlay() {
+            if (isPlaying) {
+                // 正在播放 → 暂停
+                audio.pause();
+                vinyl.classList.remove('rotate');
+                playBtn.innerHTML = '▶';
+            } else {
+                // 暂停 → 播放
+                audio.play();
+                vinyl.classList.add('rotate');
+                playBtn.innerHTML = '⏸';
+            }
+            isPlaying = !isPlaying; // 取反状态
+        }
+
+        /**
+         * 上一首
+         */
+        function prevSong() {
+            // 索引-1，循环到最后一首
+            currentSongIndex = (currentSongIndex - 1 + songs.length) % songs.length;
+            loadSong(songs[currentSongIndex]);
+            if (isPlaying) setTimeout(() => togglePlay(), 100);
+        }
+
+        /**
+         * 下一首（支持单曲循环）
+         */
+        function nextSong() {
+            if (isLoop) {
+                // 单曲循环：重头播放当前歌曲
+                audio.currentTime = 0;
+                audio.play();
+            } else {
+                // 顺序播放：切下一首
+                currentSongIndex = (currentSongIndex + 1) % songs.length;
+                loadSong(songs[currentSongIndex]);
+                if (isPlaying) setTimeout(() => togglePlay(), 100);
+            }
+        }
+
+        /**
+         * 切换单曲循环模式
+         */
+        function toggleLoop() {
+            isLoop = !isLoop;
+            loopBtn.classList.toggle('active', isLoop);
+        }
+
+        /**
+         * 更新播放进度条
+         */
+        function updateProgress() {
+            if (!isNaN(audio.duration)) {
+                const percent = (audio.currentTime / audio.duration) * 100;
+                progress.style.width = percent + '%';
+                currentTimeEl.textContent = formatTime(audio.currentTime);
+            }
+        }
+
+        /**
+         * 格式化时间：秒 → 00:00
+         */
+        function formatTime(time) {
+            const m = Math.floor(time / 60);
+            const s = Math.floor(time % 60);
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        /**
+         * 点击进度条跳转播放位置
+         */
+        function setProgress(e) {
+            audio.currentTime = (e.offsetX / progressBar.clientWidth) * audio.duration;
+        }
+
+        // ==================== 事件监听 ====================
+
+        // 音量按钮：点击静音/取消静音
+        volumeBtn.addEventListener('click', () => {
+            if(audio.volume > 0) {
+                audio.volume = 0;
+                volumeSlider.value = 0;
+            } else {
+                audio.volume = 1;
+                volumeSlider.value = 1;
+            }
+        });
+
+        // 音量滑动条拖动
+        volumeSlider.addEventListener('input', () => {
+            audio.volume = volumeSlider.value;
+        });
+
+        // 播放列表按钮：显示/隐藏列表
+        playlistBtn.addEventListener('click', () => {
+            playlist.classList.toggle('show');
+        });
+
+        // 点击播放列表项：切歌
+        playlistItems.forEach((item, i) => {
+            item.addEventListener('click', () => {
+                currentSongIndex = i;
+                loadSong(songs[i]);
+                togglePlay();
+                playlist.classList.remove('show');
+            });
+        });
+
+        // 循环按钮点击
+        loopBtn.addEventListener('click', toggleLoop);
+        // 歌曲播放结束自动下一首
+        audio.addEventListener('ended', nextSong);
+        // 时间更新 → 更新进度条
+        audio.addEventListener('timeupdate', updateProgress);
+        // 点击进度条跳转
+        progressBar.addEventListener('click', setProgress);
+        // 播放按钮
+        playBtn.addEventListener('click', togglePlay);
+        // 上一首
+        prevBtn.addEventListener('click', prevSong);
+        // 下一首
+        nextBtn.addEventListener('click', nextSong);
+    </script>
+</body>
+</html>
